@@ -54,7 +54,7 @@ repositories {
 dependencies {
     implementation fileTree("archive")
 
-    compileOnly 'com.bgsoftware:SuperiorSkyblockAPI:1.10.0'
+    compileOnly 'com.bgsoftware:SuperiorSkyblockAPI:1.10.1'
 
     // Spigot jars
     compileOnly 'org.spigotmc:v1_16_R3-Tuinity:latest'
