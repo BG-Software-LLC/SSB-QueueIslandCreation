@@ -17,7 +17,7 @@ public final class QueueIslandCreationModule extends PluginModule {
 
     @Override
     public void onEnable(SuperiorSkyblock plugin) {
-        algorithm = new QueuedIslandCreationAlgorithm(plugin, null); // TODO: Get creation algorithm
+        algorithm = new QueuedIslandCreationAlgorithm(plugin, plugin.getGrid().getIslandCreationAlgorithm());
         plugin.getGrid().setIslandCreationAlgorithm(algorithm);
     }
 
