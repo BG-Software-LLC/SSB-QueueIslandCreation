@@ -1,0 +1,4 @@
+ALREADY_ACTIVE_REQUEST: '&c&lError &7| You already have an already ongoing island in queue.'
+QUEUE_UPDATE:
+  action-bar:
+    text: '&aQueue Position: &7{0}/{1}'

@@ -1,5 +1,6 @@
 package com.bgsoftware.ssbqueueislandcreation;
 
+import com.bgsoftware.ssbqueueislandcreation.lang.Message;
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.commands.SuperiorCommand;
 import com.bgsoftware.superiorskyblock.api.modules.ModuleLoadTime;
@@ -9,10 +10,13 @@ import org.jetbrains.annotations.Nullable;
 
 public final class QueueIslandCreationModule extends PluginModule {
 
+    private static QueueIslandCreationModule instance;
+
     private QueuedIslandCreationAlgorithm algorithm;
 
     public QueueIslandCreationModule() {
         super("QueueIslandCreation", "Ome_R");
+        instance = this;
     }
 
     @Override
@@ -23,6 +27,7 @@ public final class QueueIslandCreationModule extends PluginModule {
 
     @Override
     public void onReload(SuperiorSkyblock plugin) {
+        Message.reload();
     }
 
     @Override
@@ -58,4 +63,11 @@ public final class QueueIslandCreationModule extends PluginModule {
         return algorithm;
     }
 
+    public static void log(String message) {
+        instance.getLogger().info(message);
+    }
+
+    public static QueueIslandCreationModule getInstance() {
+        return instance;
+    }
 }

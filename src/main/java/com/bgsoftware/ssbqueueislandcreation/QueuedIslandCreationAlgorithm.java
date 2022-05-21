@@ -1,5 +1,6 @@
 package com.bgsoftware.ssbqueueislandcreation;
 
+import com.bgsoftware.ssbqueueislandcreation.lang.Message;
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.schematic.Schematic;
 import com.bgsoftware.superiorskyblock.api.world.algorithm.IslandCreationAlgorithm;
@@ -46,6 +47,10 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
         if (isQueueEmpty && canCreateIslandNow)
             this.createIslandTask();
 
+        int queueSize = this.requestQueue.size();
+
+        Message.QUEUE_UPDATE.send(owner, queueSize, queueSize);
+
         return creationRequest.islandCreationResultFuture;
     }
 
@@ -65,6 +70,13 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
 
         IslandCreationRequest request = requestQueue.remove();
         pendingIslandNames.remove(request.islandName.toLowerCase(Locale.ENGLISH));
+
+        int currentQueueIndex = 1;
+        int queueSize = requestQueue.size();
+
+        for (IslandCreationRequest pendingRequest : requestQueue) {
+            Message.QUEUE_UPDATE.send(pendingRequest.owner, currentQueueIndex++, queueSize);
+        }
 
         BlockPosition lastIsland = plugin.getFactory().createBlockPosition(plugin.getGrid().getLastIslandLocation());
         original.createIsland(request.islandUUID, request.owner, lastIsland, request.islandName, request.schematic)
