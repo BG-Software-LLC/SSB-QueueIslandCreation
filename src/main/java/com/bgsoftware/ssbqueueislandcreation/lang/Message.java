@@ -28,16 +28,8 @@ public enum Message {
 
     private final Map<Locale, IMessageComponent> messages = new HashMap<>();
 
-    public boolean isEmpty(java.util.Locale locale) {
-        return messages.getOrDefault(locale, EMPTY_COMPONENT).getType() == IMessageComponent.Type.EMPTY;
-    }
-
     public void send(SuperiorPlayer superiorPlayer, Object... objects) {
         send(superiorPlayer.asPlayer(), superiorPlayer.getUserLocale(), objects);
-    }
-
-    public void send(CommandSender sender, Object... objects) {
-        send(sender, LocaleUtils.getLocale(sender), objects);
     }
 
     public void send(CommandSender sender, java.util.Locale locale, Object... args) {
