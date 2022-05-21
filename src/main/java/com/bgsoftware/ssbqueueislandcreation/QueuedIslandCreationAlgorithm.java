@@ -6,7 +6,6 @@ import com.bgsoftware.superiorskyblock.api.world.algorithm.IslandCreationAlgorit
 import com.bgsoftware.superiorskyblock.api.wrappers.BlockPosition;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import org.bukkit.Bukkit;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
@@ -31,7 +30,7 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
     public QueuedIslandCreationAlgorithm(SuperiorSkyblock plugin, IslandCreationAlgorithm original) {
         this.plugin = plugin;
         this.original = original;
-        this.creationTask = Bukkit.getScheduler().runTaskTimer((Plugin) plugin, this::createIslandTask, 100L, 100L);
+        this.creationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::createIslandTask, 100L, 100L);
     }
 
     @Override
@@ -76,7 +75,7 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
                         request.islandCreationResultFuture.complete(islandCreationResult);
                     }
 
-                    Bukkit.getScheduler().runTaskLater((Plugin) plugin, () -> {
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
                         canCreateIslandNow = true;
                         this.createIslandTask();
                     }, 100L);
