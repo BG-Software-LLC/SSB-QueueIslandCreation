@@ -23,7 +23,7 @@ public enum Message {
 
     private static final QueueIslandCreationModule module = QueueIslandCreationModule.getInstance();
 
-    private static final MessagesService MESSAGES_SERVICE = Bukkit.getServicesManager().getRegistration(MessagesService.class).getProvider();
+    private static final MessagesService MESSAGES_SERVICE = Objects.requireNonNull(Bukkit.getServicesManager().getRegistration(MessagesService.class)).getProvider();
     private static final IMessageComponent EMPTY_COMPONENT = MESSAGES_SERVICE.newBuilder().build();
 
     private final Map<Locale, IMessageComponent> messages = new HashMap<>();
