@@ -16,6 +16,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgorithm {
 
@@ -46,16 +47,17 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
         IslandCreationRequest creationRequest = new IslandCreationRequest(islandUUID, owner, islandName, schematic);
         boolean isQueueEmpty = this.requestQueue.isEmpty();
 
-        requestQueue.add(creationRequest);
-        pendingIslandNames.add(islandName.toLowerCase(Locale.ENGLISH));
-        pendingOwners.add(owner.getUniqueId());
+        if (isQueueEmpty && canCreateIslandNow) {
+            this.createIsland(creationRequest);
+        } else {
+            requestQueue.add(creationRequest);
+            pendingIslandNames.add(islandName.toLowerCase(Locale.ENGLISH));
+            pendingOwners.add(owner.getUniqueId());
 
-        if (isQueueEmpty && canCreateIslandNow)
-            this.createIslandTask();
-
-        int queueSize = this.requestQueue.size();
-
-        Message.QUEUE_UPDATE.send(owner, queueSize, queueSize);
+            int queueSize = this.requestQueue.size();
+            Message.QUEUE_UPDATE.send(owner, queueSize, queueSize,
+                    TimeUnit.MILLISECONDS.toSeconds(queueSize * queueInterval * 50));
+        }
 
         return creationRequest.islandCreationResultFuture;
     }
@@ -80,20 +82,14 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
         int currentQueueIndex = 1;
         int queueSize = requestQueue.size();
         for (IslandCreationRequest pendingRequest : requestQueue) {
-            Message.QUEUE_UPDATE.send(pendingRequest.owner, currentQueueIndex++, queueSize);
+            Message.QUEUE_UPDATE.send(pendingRequest.owner, currentQueueIndex, queueSize,
+                    TimeUnit.MILLISECONDS.toSeconds(currentQueueIndex * queueInterval * 50));
+            currentQueueIndex++;
         }
     }
 
-    private void createIslandTask() {
-        if (requestQueue.isEmpty())
-            return;
-
+    private void createIsland(IslandCreationRequest request) {
         canCreateIslandNow = false;
-
-        IslandCreationRequest request = requestQueue.remove();
-        pendingIslandNames.remove(request.islandName.toLowerCase(Locale.ENGLISH));
-        pendingOwners.remove(request.owner.getUniqueId());
-
         BlockPosition lastIsland = plugin.getFactory().createBlockPosition(plugin.getGrid().getLastIslandLocation());
         original.createIsland(request.islandUUID, request.owner, lastIsland, request.islandName, request.schematic)
                 .whenComplete(((islandCreationResult, error) -> {
@@ -108,6 +104,17 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
                         this.createIslandTask();
                     }, queueInterval);
                 }));
+    }
+
+    private void createIslandTask() {
+        if (requestQueue.isEmpty())
+            return;
+
+        IslandCreationRequest request = requestQueue.remove();
+        pendingIslandNames.remove(request.islandName.toLowerCase(Locale.ENGLISH));
+        pendingOwners.remove(request.owner.getUniqueId());
+
+        createIsland(request);
     }
 
     private static class IslandCreationRequest {
