@@ -9,29 +9,34 @@ import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Queue;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgorithm {
 
     private final Queue<IslandCreationRequest> requestQueue = new LinkedList<>();
-    private final List<String> pendingIslandNames = new ArrayList<>();
+    private final Set<String> pendingIslandNames = new HashSet<>();
+    private final Set<UUID> pendingOwners = new HashSet<>();
 
     private final SuperiorSkyblock plugin;
     private final IslandCreationAlgorithm original;
+    private final long queueInterval;
     private final BukkitTask creationTask;
+    private final BukkitTask notifyTask;
 
     private boolean canCreateIslandNow = true;
 
-    public QueuedIslandCreationAlgorithm(SuperiorSkyblock plugin, IslandCreationAlgorithm original) {
+    public QueuedIslandCreationAlgorithm(SuperiorSkyblock plugin, IslandCreationAlgorithm original, long queueInterval) {
         this.plugin = plugin;
         this.original = original;
-        this.creationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::createIslandTask, 100L, 100L);
+        this.queueInterval = queueInterval;
+        this.creationTask = Bukkit.getScheduler().runTaskTimer(plugin, this::createIslandTask, queueInterval, queueInterval);
+        this.notifyTask = Bukkit.getScheduler().runTaskTimer(plugin, this::notifyPendingPlayers, 20L, 20L);
     }
 
     @Override
@@ -43,6 +48,7 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
 
         requestQueue.add(creationRequest);
         pendingIslandNames.add(islandName.toLowerCase(Locale.ENGLISH));
+        pendingOwners.add(owner.getUniqueId());
 
         if (isQueueEmpty && canCreateIslandNow)
             this.createIslandTask();
@@ -58,8 +64,24 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
         return pendingIslandNames.contains(islandName.toLowerCase(Locale.ENGLISH));
     }
 
+    public boolean hasActiveRequest(SuperiorPlayer superiorPlayer) {
+        return pendingOwners.contains(superiorPlayer.getUniqueId());
+    }
+
     public BukkitTask getCreationTask() {
         return this.creationTask;
+    }
+
+    public BukkitTask getNotifyTask() {
+        return this.notifyTask;
+    }
+
+    private void notifyPendingPlayers() {
+        int currentQueueIndex = 1;
+        int queueSize = requestQueue.size();
+        for (IslandCreationRequest pendingRequest : requestQueue) {
+            Message.QUEUE_UPDATE.send(pendingRequest.owner, currentQueueIndex++, queueSize);
+        }
     }
 
     private void createIslandTask() {
@@ -70,13 +92,7 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
 
         IslandCreationRequest request = requestQueue.remove();
         pendingIslandNames.remove(request.islandName.toLowerCase(Locale.ENGLISH));
-
-        int currentQueueIndex = 1;
-        int queueSize = requestQueue.size();
-
-        for (IslandCreationRequest pendingRequest : requestQueue) {
-            Message.QUEUE_UPDATE.send(pendingRequest.owner, currentQueueIndex++, queueSize);
-        }
+        pendingOwners.remove(request.owner.getUniqueId());
 
         BlockPosition lastIsland = plugin.getFactory().createBlockPosition(plugin.getGrid().getLastIslandLocation());
         original.createIsland(request.islandUUID, request.owner, lastIsland, request.islandName, request.schematic)
@@ -90,7 +106,7 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
                         canCreateIslandNow = true;
                         this.createIslandTask();
-                    }, 100L);
+                    }, queueInterval);
                 }));
     }
 

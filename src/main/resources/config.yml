@@ -1,0 +1,9 @@
+######################################################
+##                                                  ##
+##             SSB - QueueIslandCreation            ##
+##                Developed by Ome_R                ##
+##                                                  ##
+######################################################
+
+# The interval of the queue, in ticks.
+queue-interval: 100

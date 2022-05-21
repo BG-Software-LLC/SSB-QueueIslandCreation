@@ -3,9 +3,7 @@ package com.bgsoftware.ssbqueueislandcreation.lang;
 import com.bgsoftware.common.config.CommentedConfiguration;
 import com.bgsoftware.ssbqueueislandcreation.QueueIslandCreationModule;
 import com.bgsoftware.superiorskyblock.api.service.message.IMessageComponent;
-import com.bgsoftware.superiorskyblock.api.service.message.MessagesService;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 
 import java.io.File;
@@ -23,8 +21,7 @@ public enum Message {
 
     private static final QueueIslandCreationModule module = QueueIslandCreationModule.getInstance();
 
-    private static final MessagesService MESSAGES_SERVICE = Objects.requireNonNull(Bukkit.getServicesManager().getRegistration(MessagesService.class)).getProvider();
-    private static final IMessageComponent EMPTY_COMPONENT = MESSAGES_SERVICE.newBuilder().build();
+    private static final IMessageComponent EMPTY_COMPONENT = module.getMessagesService().newBuilder().build();
 
     private final Map<Locale, IMessageComponent> messages = new HashMap<>();
 
@@ -48,6 +45,7 @@ public enum Message {
         File langFolder = new File(module.getDataFolder(), "lang");
 
         if (!langFolder.exists()) {
+            langFolder.mkdirs();
             module.saveResource("lang/en-US.yml");
         }
 
@@ -76,7 +74,7 @@ public enum Message {
             }
 
             for (Message message : values()) {
-                message.setMessage(fileLocale, MESSAGES_SERVICE.parseComponent(cfg, message.name()));
+                message.setMessage(fileLocale, module.getMessagesService().parseComponent(cfg, message.name()));
                 if (countMessages)
                     messagesAmount++;
             }
