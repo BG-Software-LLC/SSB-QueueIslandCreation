@@ -2,7 +2,8 @@ package com.bgsoftware.ssbqueueislandcreation;
 
 import com.bgsoftware.ssbqueueislandcreation.lang.Message;
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
-import com.bgsoftware.superiorskyblock.api.schematic.Schematic;
+import com.bgsoftware.superiorskyblock.api.island.Island;
+import com.bgsoftware.superiorskyblock.api.world.algorithm.DelegateIslandCreationAlgorithm;
 import com.bgsoftware.superiorskyblock.api.world.algorithm.IslandCreationAlgorithm;
 import com.bgsoftware.superiorskyblock.api.wrappers.BlockPosition;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
@@ -18,7 +19,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgorithm {
+public final class QueuedIslandCreationAlgorithm extends DelegateIslandCreationAlgorithm {
 
     private final Queue<IslandCreationRequest> requestQueue = new LinkedList<>();
     private final Set<String> pendingIslandNames = new HashSet<>();
@@ -33,6 +34,7 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
     private boolean canCreateIslandNow = true;
 
     public QueuedIslandCreationAlgorithm(SuperiorSkyblock plugin, IslandCreationAlgorithm original, long queueInterval) {
+        super(original);
         this.plugin = plugin;
         this.original = original;
         this.queueInterval = queueInterval;
@@ -41,21 +43,20 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
     }
 
     @Override
-    public CompletableFuture<IslandCreationResult> createIsland(UUID islandUUID, SuperiorPlayer owner,
-                                                                BlockPosition lastIsland, String islandName,
-                                                                Schematic schematic) {
-        IslandCreationRequest creationRequest = new IslandCreationRequest(islandUUID, owner, islandName, schematic);
+    public CompletableFuture<IslandCreationResult> createIsland(Island.Builder builder, BlockPosition lastIsland) {
+        IslandCreationRequest creationRequest = new IslandCreationRequest(builder);
         boolean isQueueEmpty = this.requestQueue.isEmpty();
 
         if (isQueueEmpty && canCreateIslandNow) {
             this.createIsland(creationRequest);
         } else {
             requestQueue.add(creationRequest);
-            pendingIslandNames.add(islandName.toLowerCase(Locale.ENGLISH));
-            pendingOwners.add(owner.getUniqueId());
+            if (!builder.getName().isEmpty())
+                pendingIslandNames.add(builder.getName().toLowerCase(Locale.ENGLISH));
+            pendingOwners.add(builder.getOwner().getUniqueId());
 
             int queueSize = this.requestQueue.size();
-            Message.QUEUE_UPDATE.send(owner, queueSize, queueSize,
+            Message.QUEUE_UPDATE.send(builder.getOwner(), queueSize, queueSize,
                     TimeUnit.MILLISECONDS.toSeconds(queueSize * queueInterval * 50));
         }
 
@@ -82,7 +83,7 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
         int currentQueueIndex = 1;
         int queueSize = requestQueue.size();
         for (IslandCreationRequest pendingRequest : requestQueue) {
-            Message.QUEUE_UPDATE.send(pendingRequest.owner, currentQueueIndex, queueSize,
+            Message.QUEUE_UPDATE.send(pendingRequest.builder.getOwner(), currentQueueIndex, queueSize,
                     TimeUnit.MILLISECONDS.toSeconds(currentQueueIndex * queueInterval * 50));
             currentQueueIndex++;
         }
@@ -91,19 +92,18 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
     private void createIsland(IslandCreationRequest request) {
         canCreateIslandNow = false;
         BlockPosition lastIsland = plugin.getFactory().createBlockPosition(plugin.getGrid().getLastIslandLocation());
-        original.createIsland(request.islandUUID, request.owner, lastIsland, request.islandName, request.schematic)
-                .whenComplete(((islandCreationResult, error) -> {
-                    if (error != null) {
-                        request.islandCreationResultFuture.completeExceptionally(error);
-                    } else {
-                        request.islandCreationResultFuture.complete(islandCreationResult);
-                    }
+        original.createIsland(request.builder, lastIsland).whenComplete(((islandCreationResult, error) -> {
+            if (error != null) {
+                request.islandCreationResultFuture.completeExceptionally(error);
+            } else {
+                request.islandCreationResultFuture.complete(islandCreationResult);
+            }
 
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        canCreateIslandNow = true;
-                        this.createIslandTask();
-                    }, queueInterval);
-                }));
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                canCreateIslandNow = true;
+                this.createIslandTask();
+            }, queueInterval);
+        }));
     }
 
     private void createIslandTask() {
@@ -111,25 +111,19 @@ public final class QueuedIslandCreationAlgorithm implements IslandCreationAlgori
             return;
 
         IslandCreationRequest request = requestQueue.remove();
-        pendingIslandNames.remove(request.islandName.toLowerCase(Locale.ENGLISH));
-        pendingOwners.remove(request.owner.getUniqueId());
+        pendingIslandNames.remove(request.builder.getName().toLowerCase(Locale.ENGLISH));
+        pendingOwners.remove(request.builder.getOwner().getUniqueId());
 
         createIsland(request);
     }
 
     private static class IslandCreationRequest {
 
-        private final UUID islandUUID;
-        private final SuperiorPlayer owner;
-        private final String islandName;
-        private final Schematic schematic;
+        private final Island.Builder builder;
         private final CompletableFuture<IslandCreationResult> islandCreationResultFuture;
 
-        IslandCreationRequest(UUID islandUUID, SuperiorPlayer owner, String islandName, Schematic schematic) {
-            this.islandUUID = islandUUID;
-            this.owner = owner;
-            this.islandName = islandName;
-            this.schematic = schematic;
+        IslandCreationRequest(Island.Builder builder) {
+            this.builder = builder;
             this.islandCreationResultFuture = new CompletableFuture<>();
         }
 

@@ -3,6 +3,7 @@ package com.bgsoftware.ssbqueueislandcreation;
 import com.bgsoftware.common.config.CommentedConfiguration;
 import com.bgsoftware.ssbqueueislandcreation.lang.Message;
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
+import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
 import com.bgsoftware.superiorskyblock.api.commands.SuperiorCommand;
 import com.bgsoftware.superiorskyblock.api.modules.ModuleLoadTime;
 import com.bgsoftware.superiorskyblock.api.modules.PluginModule;
@@ -16,6 +17,8 @@ import java.io.File;
 import java.io.IOException;
 
 public final class QueueIslandCreationModule extends PluginModule {
+
+    private static final int API_VERSION = 5;
 
     private static QueueIslandCreationModule instance;
 
@@ -31,6 +34,9 @@ public final class QueueIslandCreationModule extends PluginModule {
 
     @Override
     public void onEnable(SuperiorSkyblock plugin) {
+        if (SuperiorSkyblockAPI.getAPIVersion() < API_VERSION)
+            throw new IllegalStateException("Unsupported SuperiorSkyblock version.");
+
         RegisteredServiceProvider<MessagesService> messagesServiceProvider = Bukkit.getServicesManager().getRegistration(MessagesService.class);
 
         if (messagesServiceProvider == null)
